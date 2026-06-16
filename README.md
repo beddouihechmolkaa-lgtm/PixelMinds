@@ -1,2 +1,2 @@
 # PixelMinds
-Hackathon (AI for Entrepreneurship)
+Hackathon (AI For Entreprise Automation)
