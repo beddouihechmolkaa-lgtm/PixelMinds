@@ -1,147 +1,103 @@
-# AINS Agent Flight Recorder
-### Continuous Evaluation System + Deterministic Replay Engine + Autonomous Agent
-AINS Hackathon 2026 — Use Case 1 + Use Case 2 + Use Case 3 (Unified Architecture)
+# AERO — Automated Enterprise Recording & Observability
+### Continuous Evaluation + Deterministic Replay + Autonomous Agentic Workflows
+AINS Hackathon 2026 — Unified Architecture (Use Cases 1, 2 & 3)
 
 ---
 
-## 🎯 Problem Statement
+## 🎯 The Problem
 
-Enterprise teams deploy AI agents inside Atlassian tools (Jira Service Management, Confluence) to automate workflows. These agents are non-deterministic — the same prompt can produce different tool calls, reasoning chains, and outputs on every run.
+Enterprise AI agents are *non-deterministic*. The same prompt produces different tool calls and reasoning chains every time. When an agent fails silently (e.g., mis-assigning 15% of JSM tickets), traditional logging is useless because the failure cannot be reproduced.
 
-When an agent fails silently:
-- 12 out of 80 JSM tickets get mis-assigned with no error fired
-- A Confluence summary agent starts producing verbose, unstructured output after a model update
-- A promotion-evaluation agent approves the wrong candidate due to a semantic hallucination
-
-Traditional logging cannot debug this. Running the agent again produces different behavior. There is no mechanism today to capture what the agent actually did, replay it deterministically, or attribute failure to a specific step.
+*There is no "Flight Recorder" for AI agents... until now.*
 
 ---
 
-## 💡 The Unified Solution
+## 💡 The Solution: AERO
 
-Three use cases. One coherent architecture.
+*AERO* is an infrastructure-level observability layer that captures the "DNA" of every agent execution. It transforms non-deterministic AI into an auditable, debuggable, and measurable enterprise asset.
 
-*Layer 1 — The Agent (UC3)*  
-Autonomous JSM-to-Confluence FAQ generator. Does the real enterprise work.
+### The 3-Layer Mechanism:
 
-*Layer 2 — Flight Recorder (UC2)*  
-Infrastructure proxy. Records every step and enables deterministic, side-effect-free replay.
-
-*Layer 3 — AI Judge (UC1)*  
-The Auditor. Analyzes trajectories to produce structured verdicts, attribute failures, and detect drift.
-
-**The AI is not a feature — it is the mechanism.** Remove the AI Judge, and the system loses its observability. Remove the Recorder, and you lose reproducibility. Remove the Agent, and there is no work to observe.
-
+1.  *Layer 1 — The Agent (UC3):* An autonomous JSM-to-Confluence FAQ generator. It uses Gemini 1.5 Flash to transform unstructured tickets into high-quality knowledge base articles.
+2.  *Layer 2 — The Flight Recorder (UC2):* A transparent proxy that intercepts every LLM call and tool interaction, enabling *Deterministic Replay* and *Divergence Injection*.
+3.  *Layer 3 — The AI Judge (UC1):* A specialized Auditor AI that analyzes trajectories, attributes failures to specific components, and detects performance drift over time.
 
 ---
 
-## 🤖 Layer 1 — The Agent (Use Case 3)
+## 🤖 Layer 1: Autonomous Agent (Use Case 3)
+Bridge the gap between Support and Knowledge Management.
 
-What it does: An autonomous agent that reads closed JSM tickets and automatically generates structured FAQ pages on Confluence.
-
-This task cannot be automated with IF/THEN rules. It requires:
-- *Semantic Reasoning*: Understanding messy, unstructured ticket descriptions.
-- *Intent Classification*: Determining the core issue (Auth, Billing, Bug).
-- *Synthesis*: Generating coherent, well-structured Confluence pages with Gemini 1.5 Flash.
+- *Autonomous Reasoning:* Reads closed JSM tickets to extract core technical solutions.
+- *Structured Output:* Automatically drafts multi-section FAQ pages on Confluence.
+- *Fail-Safe logic:* Flags low-cohesion drafts for human review instead of publishing hallucinations.
 
 ---
 
-## 🖥️ Layer 2 — Flight Recorder (Use Case 2)
+## 🖥️ Layer 2: Flight Recorder (Use Case 2)
+The Black Box for your AI workforce.
 
-What it does: An infrastructure-level proxy that transparently intercepts and records everything the agent does.
-
-- *Trajectory Recording*: Captures Prompts, Tool Payloads (Jira/Conf), Memory States, and Latencies.
-- *Deterministic Replay*: Re-runs sessions using cached responses. No live APIs hit. No accidental emails sent.
-- *Divergence Injection*: Allows developers to modify a prompt mid-replay and see the "What If" branching trajectory.
-
----
-
-## 🧠 Layer 3 — AI Judge (Use Case 1)
-
-What it does: A second AI (The Auditor) that analyzes the recorded trajectory and produces a structured verdict.
-
-- *Component Attribution*: Identifies the exact step (e.g., Step 4: Draft Generation) where the logic diverged.
-- *Drift Detection*: Monitors statistical shifts in cohesion and length across hundreds of runs.
-- *Evaluator Self-Assessment*: The judge reports its own confidence score (0.0 - 1.0) for every verdict it emits.
+- *Trajectory Capture:* Logs prompts, tool payloads, memory states, and latencies in real-time.
+- *Deterministic Replay:* Re-execute any recorded session using cached responses. No live API calls, no side-effects.
+- *Branching Debugger:* Inject a modified prompt mid-replay to see how the agent's logic diverges.
 
 ---
 
-## 📐 Architecture Overview
+## 🧠 Layer 3: AI Judge (Use Case 1)
+Continuous Evaluation at Scale.
+
+- *Failure Attribution:* Don't just see that it failed—see specialized reports on where it failed (e.g., Step 3: Semantic Misclassification).
+- *Drift Detection:* Monitor statistical shifts in output quality using word-count and cohesion baselines.
+- *Professional Verdicts:* Every run produces a human-readable markdown audit trail with a self-assessment confidence score.
+
+---
+
+## 📐 Architecture & Tech Stack
 
 text
-ains_agent_engine/
+aero_engine/
 ├── src/
 │   ├── components/      ← Premium "Royal Amethyst" Dashboards
-│   ├── utils/           ← Mock data & Heuristic engines
-│   ├── types.ts         ← Type-safe Trajectory schemas
-│   └── App.tsx          ← Main Flight Recorder interface
-├── server.ts            ← Core Proxy Engine + AI Judge Pipeline (Gemini-powered)
+│   ├── types.ts         ← Type-safe Trajectory & Verdict schemas
+│   └── App.tsx          ← Main Command Center Interface
+├── server.ts            ← AERO Proxy Engine (Node.js + Gemini 1.5 Flash)
 ├── data/                ← Trajectory Snapshots (Persistent JSON)
 └── README.md
 
-*Tech Stack:*
-- *Backend:* Node.js + Express (High-concurrency proxying)
-- *AI Core:* Google Gemini 1.5 Flash (SOTA reasoning)
-- *Frontend:* React + Vite + Tailwind CSS + Chart.js
-- *Design System:* "Royal Amethyst & Midnight" — Dark, enterprise-grade aesthetics
+- *Runtime:* Node.js + Vite (Fast, Type-safe proxying)
+- *AI Engine:* Google Gemini 1.5 Flash (SOTA for reasoning & audit)
+- *UI:* React + Tailwind CSS + Chart.js (Enterprise-grade visualization)
 
 ---
 
-## ✅ AINS Acceptance Criteria Mapping
+## ✅ Acceptance Criteria Mapping
 
-### Use Case 1 — Continuous Evaluation
-
-| Criterion | Implementation Detail | Status |
-|-----------|-----------------------|--------|
-| Trajectory capture | Full execution trace captured in AgentRun objects | ✅ |
-| Multi-level eval | End-to-end task completion + Component-level logic check | ✅ |
-| Failure attribution | Failed step identified via semantic analysis | ✅ |
-| Human-readable verdict | Structured Markdown reports with confidence metrics | ✅ |
-| Drift detection | Scenario B visualization (Cohesion vs Word-count) | ✅ |
-
-### Use Case 2 — Flight Recorder
-
-| Criterion | Implementation Detail | Status |
-|-----------|-----------------------|--------|
-| Record functionality | Transparent capture of LLM & Tool payloads | ✅ |
-| Deterministic replay | Offline replay mode using recorded cache | ✅ |
-| State inspection | Step-by-step diffing of agent memory/context | ✅ |
-| Divergence editing | Branching Replay: Modify prompts mid-trajectory | ✅ |
-
-### Use Case 3 — Autonomous Agent
-
-| Criterion | Implementation Detail | Status |
-|-----------|-----------------------|--------|
-| End-to-end workflow | JSM Ticket → Semantic FAQ → Confluence Draft | ✅ |
-| AI necessity verified | Semantic reasoning required for unstructured data | ✅ |
-| Actionable output | Formatted, multi-section FAQ pages | ✅ |
-| Evaluation metric | Cohesion Score & Hallucination Probability | ✅ |
+| Criterion | AERO Implementation | Status |
+|-----------|---------------------|--------|
+| *Trajectory Capture* | Full JSON state sequence recorded per run | ✅ MUST |
+| *Multi-Level Eval* | Task completion + Component-level logic check | ✅ MUST |
+| *Failure Attribution* | Step-specific divergence identification | ✅ MUST |
+| *Deterministic Replay* | Offline-first replay mode using recorded cache | ✅ MUST |
+| *AI Necessity* | Semantic reasoning required for unstructured data | ✅ MUST |
+| *Drift Detection* | Statistical analysis of word-count & cohesion drift | ✅ SHOULD |
 
 ---
 
-## 🚀 Quick Start (Demo)
+## 🚀 Quick Start
 
-# 1. Install dependencies
-npm install
+1. *Install:* npm install
+2. *Key:* Add GEMINI_API_KEY to your .env
+3. *Run:* npm run dev
 
-# 2. Add your Gemini key to .env
-# GEMINI_API_KEY=your_key_here
-
-# 3. Launch the environment
-npm run dev
-
-Navigate: *Dashboard → Scenario A (Silent Failure) → Scenario B (Drift) → Flight Recorder (Scenario C)*
+Navigate through: *Dashboard → Scenario A (Silent Failure) → Scenario B (Drift) → AERO Flight Recorder*
 
 ---
 
 ## 📊 Value Proposition
 
-Standard Jira Automation handles IF/THEN rules.
-*We handle the semantic gap* — the class of failures that no rule-based system can detect.
+Standard automation is for rules. *AERO is for reasoning.*  
+By capturing what happens inside the "brain" of the agent, we enable the same level of trust in AI that engineers have in traditional code.
 
-Our agent does real work. Our recorder captures every move. Our judge explains every failure.
-
-*The AI is the mechanism — at every level.*
+*AERO: The mechanism that makes Enterprise AI mission-critical.*
 
 ---
 AINS Hackathon 2026 — Organised by AINS 4.0 in partnership with Vectors
