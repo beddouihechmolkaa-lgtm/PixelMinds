@@ -1,0 +1,6 @@
+{
+  "name": "AINS Agent Flight Recorder",
+  "description": "Continuous Evaluation, Deterministic Replay, and Autonomous Agent debugging suite for Atlassian (JSM/Confluence) integrations",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
