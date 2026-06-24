@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
-import { TrendingDown, AlertTriangle, HelpCircle, CheckCircle, ListFilter, Calendar } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis,
+  CartesianGrid, Tooltip, Legend, ReferenceLine
+} from 'recharts';
+import { TrendingDown, AlertTriangle, CheckCircle, Activity, TrendingUp, Zap } from 'lucide-react';
 import { DriftDataPoint } from '../types';
 
 interface DriftMonitorProps {
@@ -8,17 +11,61 @@ interface DriftMonitorProps {
 }
 
 export default function DriftMonitor({ driftData }: DriftMonitorProps) {
-  const [selectedPoint, setSelectedPoint] = useState<DriftDataPoint | null>(driftData[18] || driftData[15]); // Default to a standard run
+  // Default to the last data point (most recent)
+  const [selectedPoint, setSelectedPoint] = useState<DriftDataPoint | null>(null);
 
-  // Format Recharts tooltips
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  // Derive the currently selected point: default to the latest run
+  const activePoint = selectedPoint ?? (driftData.length > 0 ? driftData[driftData.length - 1] : null);
+
+  // Compute live aggregate stats from actual data
+  const stats = useMemo(() => {
+    if (!driftData.length) return null;
+
+    const cohesionValues = driftData.map(d => d.cohesionScore);
+    const wordCounts = driftData.map(d => d.wordCount);
+    const failureCount = driftData.filter(d => d.hasFailure).length;
+
+    const avgCohesion = cohesionValues.reduce((a, b) => a + b, 0) / cohesionValues.length;
+    const avgWordCount = wordCounts.reduce((a, b) => a + b, 0) / wordCounts.length;
+    const minCohesion = Math.min(...cohesionValues);
+    const maxCohesion = Math.max(...cohesionValues);
+
+    // Detect if latest run is degraded vs average
+    const latest = driftData[driftData.length - 1];
+    const isCurrentlyDrifted = latest.cohesionScore < avgCohesion - 0.1 || latest.wordCount > avgWordCount * 1.3;
+
+    // Find drift inflection point: first run where cohesion dropped significantly
+    let inflectionRun: DriftDataPoint | null = null;
+    for (let i = 1; i < driftData.length; i++) {
+      if (driftData[i].cohesionScore < driftData[i - 1].cohesionScore - 0.07) {
+        inflectionRun = driftData[i];
+        break;
+      }
+    }
+
+    return {
+      avgCohesion: avgCohesion.toFixed(2),
+      avgWordCount: Math.round(avgWordCount),
+      minCohesion: minCohesion.toFixed(2),
+      maxCohesion: maxCohesion.toFixed(2),
+      failureRate: ((failureCount / driftData.length) * 100).toFixed(0),
+      totalRuns: driftData.length,
+      latestCohesion: latest.cohesionScore,
+      latestWordCount: latest.wordCount,
+      isCurrentlyDrifted,
+      inflectionRun,
+    };
+  }, [driftData]);
+
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const data = payload[0].payload as DriftDataPoint;
       return (
         <div className="bg-slate-950 border border-slate-800 p-3 rounded-lg shadow-xl text-left font-sans text-xs">
           <p className="font-bold text-white mb-1">Run #{data.runIndex} ({data.runId})</p>
           <p className="text-violet-400">Cohesion: <span className="font-mono font-bold">{data.cohesionScore}</span></p>
           <p className="text-amber-400">Word Count: <span className="font-mono font-bold">{data.wordCount} words</span></p>
+          {data.hasFailure && <p className="text-red-400 font-bold mt-1">⚠ Failure detected</p>}
           <p className="text-slate-500 text-[10px] mt-1 italic">{data.model}</p>
         </div>
       );
@@ -26,9 +73,19 @@ export default function DriftMonitor({ driftData }: DriftMonitorProps) {
     return null;
   };
 
+  // Empty state
+  if (!driftData.length) {
+    return (
+      <div className="flex items-center justify-center h-64 bg-[#0f172a] border border-slate-800 rounded-xl text-slate-500 text-sm">
+        <Activity size={16} className="mr-2" /> No drift data available yet — run the agent to generate records.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6" id="scen-b-container">
-      {/* Introduction Banner with automatic Alert indicator */}
+
+      {/* Header Banner — alert state driven by real data */}
       <div className="p-5 bg-[#0f172a] border border-slate-800 rounded-xl shadow-md space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
@@ -40,26 +97,87 @@ export default function DriftMonitor({ driftData }: DriftMonitorProps) {
                 <TrendingDown className="text-amber-400" size={20} /> Continuous <span className="italic">Drift Monitor</span>
               </h2>
             </div>
-            <p className="text-xs text-slate-400 max-w-3xl">
-              Model updates introduce quiet semantic regressions. Following the <strong>v3.2 Model Update</strong>, the Confluence Agent average output bloated from <strong>82 words</strong> to over <strong>214 words</strong>, and the Cohesion Index fell from <strong>0.87</strong> to <strong>0.53</strong>.
-            </p>
+            {stats && (
+              <p className="text-xs text-slate-400 max-w-3xl">
+                Tracking <strong>{stats.totalRuns} runs</strong>. Current average output is{' '}
+                <strong>{stats.avgWordCount} words</strong> with a cohesion index of{' '}
+                <strong>{stats.avgCohesion}</strong>.
+                {stats.inflectionRun && (
+                  <> Drift inflection detected at <strong>Run #{stats.inflectionRun.runIndex}</strong>.</>
+                )}
+              </p>
+            )}
           </div>
-          
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-bold leading-none animate-pulse">
-            <AlertTriangle size={14} /> HIGH DRIFT ALERT DECLARED
-          </div>
+
+          {stats && (
+            stats.isCurrentlyDrifted ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-bold leading-none animate-pulse">
+                <AlertTriangle size={14} /> HIGH DRIFT ALERT ACTIVE
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold leading-none">
+                <CheckCircle size={14} /> STABLE — NO DRIFT DETECTED
+              </div>
+            )
+          )}
         </div>
       </div>
 
+      {/* Live Stats Row */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            {
+              label: 'Avg Cohesion',
+              value: stats.avgCohesion,
+              sub: `Range: ${stats.minCohesion} – ${stats.maxCohesion}`,
+              color: parseFloat(stats.avgCohesion) >= 0.70 ? 'text-emerald-400' : 'text-red-400',
+              icon: <Activity size={14} />,
+            },
+            {
+              label: 'Avg Word Count',
+              value: `${stats.avgWordCount}w`,
+              sub: 'Per Confluence output',
+              color: stats.avgWordCount < 130 ? 'text-emerald-400' : 'text-amber-400',
+              icon: <TrendingUp size={14} />,
+            },
+            {
+              label: 'Latest Cohesion',
+              value: stats.latestCohesion,
+              sub: 'Most recent run',
+              color: stats.latestCohesion >= 0.70 ? 'text-emerald-400' : 'text-red-400',
+              icon: <Zap size={14} />,
+            },
+            {
+              label: 'Failure Rate',
+              value: `${stats.failureRate}%`,
+              sub: `Over ${stats.totalRuns} runs`,
+              color: parseInt(stats.failureRate) < 20 ? 'text-emerald-400' : 'text-red-400',
+              icon: <AlertTriangle size={14} />,
+            },
+          ].map((s) => (
+            <div key={s.label} className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col gap-1">
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                <span className={s.color}>{s.icon}</span>
+                {s.label}
+              </div>
+              <div className={`text-2xl font-mono font-extrabold ${s.color}`}>{s.value}</div>
+              <div className="text-[10px] text-slate-600">{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Recharts graph panel (takes 7 columns) */}
+
+        {/* Chart Panel */}
         <div className="lg:col-span-7 bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-lg space-y-4 flex flex-col justify-between">
           <div>
             <h3 className="text-sm font-serif text-slate-200">
-              Cohesion degradation vs. Word Count bloat (Chronological runs 10 to 51)
+              Cohesion Index vs. Word Count — {driftData[0]?.runIndex} to {driftData[driftData.length - 1]?.runIndex}
             </h3>
             <p className="text-[10px] text-slate-500">
-              Double-axis graph tracing stability profiles. Click on individual line data points to see text-diff profiles in the comparative inspector.
+              Click on a point to inspect the run in the right panel.
             </p>
           </div>
 
@@ -68,197 +186,216 @@ export default function DriftMonitor({ driftData }: DriftMonitorProps) {
               <LineChart
                 data={driftData}
                 onClick={(state: any) => {
-                  if (state && state.activePayload && state.activePayload.length) {
+                  if (state?.activePayload?.length) {
                     setSelectedPoint(state.activePayload[0].payload);
                   }
                 }}
                 margin={{ top: 10, right: 10, left: -25, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis 
-                  dataKey="runIndex" 
-                  stroke="#64748b" 
+                <XAxis
+                  dataKey="runIndex"
+                  stroke="#64748b"
                   tickLine={false}
-                  fontSize={10} 
+                  fontSize={10}
                   label={{ value: 'Execution Runs (Time series)', position: 'insideBottom', offset: -5, fill: '#64748b', fontSize: 10 }}
                 />
-                
-                {/* Left YAxis - Cohesion */}
-                <YAxis 
-                  yAxisId="left" 
-                  domain={[0.3, 1.0]} 
-                  stroke="#8b5cf6" 
+                <YAxis
+                  yAxisId="left"
+                  domain={[0.3, 1.0]}
+                  stroke="#8b5cf6"
                   tickLine={false}
-                  fontSize={10} 
+                  fontSize={10}
                   label={{ value: 'Cohesion Score', angle: -90, position: 'insideLeft', offset: 10, fill: '#8b5cf6', fontSize: 10 }}
                 />
-                
-                {/* Right YAxis - Word count */}
-                <YAxis 
-                  yAxisId="right" 
-                  orientation="right" 
-                  domain={[50, 260]} 
-                  stroke="#f59e0b" 
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  stroke="#f59e0b"
                   tickLine={false}
-                  fontSize={10} 
+                  fontSize={10}
                   label={{ value: 'Word Count', angle: 90, position: 'insideRight', offset: 10, fill: '#f59e0b', fontSize: 10 }}
                 />
-                
                 <Tooltip content={<CustomTooltip />} />
                 <Legend iconSize={8} fontSize={10} wrapperStyle={{ fontSize: 10, color: '#64748b' }} />
-                
-                {/* Reference line showing update point */}
-                <ReferenceLine 
-                  yAxisId="left" 
-                  x={30} 
-                  stroke="#ef4444" 
+
+                {/* Dynamic inflection marker */}
+                {stats?.inflectionRun && (
+                  <ReferenceLine
+                    yAxisId="left"
+                    x={stats.inflectionRun.runIndex}
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    label={{ value: 'Drift Start', fill: '#ef4444', fontSize: 10, position: 'insideTopLeft' }}
+                  />
+                )}
+
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="cohesionScore"
+                  name="Cohesion Index"
+                  stroke="#8b5cf6"
                   strokeWidth={2}
-                  strokeDasharray="4 4"
-                  label={{ value: 'v3.2 Update', fill: '#ef4444', fontSize: 10, position: 'insideTopLeft' }} 
-                />
-                
-                {/* Line 1: Cohesion */}
-                <Line 
-                  yAxisId="left" 
-                  type="monotone" 
-                  dataKey="cohesionScore" 
-                  name="Cohesion Index" 
-                  stroke="#8b5cf6" 
-                  strokeWidth={2} 
                   dot={(props: any) => {
-                    const isSelected = selectedPoint && selectedPoint.runIndex === props.payload.runIndex;
+                    const isSelected = activePoint?.runIndex === props.payload.runIndex;
+                    const isInflection = stats?.inflectionRun?.runIndex === props.payload.runIndex;
                     return (
-                      <circle 
-                        cx={props.cx} 
-                        cy={props.cy} 
-                        r={isSelected ? 6 : (props.payload.runIndex === 30 ? 5 : 2)} 
-                        fill={isSelected ? '#d946ef' : (props.payload.runIndex === 30 ? '#ef4444' : '#8b5cf6')} 
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={isSelected ? 6 : isInflection ? 5 : 2}
+                        fill={isSelected ? '#d946ef' : isInflection ? '#ef4444' : '#8b5cf6'}
                         stroke="none"
+                        style={{ cursor: 'pointer' }}
                       />
                     );
                   }}
-                  activeDot={{ r: 7 }} 
+                  activeDot={{ r: 7 }}
                 />
-                
-                {/* Line 2: Word Count */}
-                <Line 
-                  yAxisId="right" 
-                  type="monotone" 
-                  dataKey="wordCount" 
-                  name="Word Count (Size)" 
-                  stroke="#f59e0b" 
-                  strokeWidth={1.5} 
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="wordCount"
+                  name="Word Count"
+                  stroke="#f59e0b"
+                  strokeWidth={1.5}
                   dot={false}
-                  activeDot={{ r: 5 }} 
+                  activeDot={{ r: 5 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="flex items-center gap-1.5 p-3 bg-slate-950 border border-slate-900 rounded-lg text-slate-400 text-[10px]">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-            <span><strong>Model v3.2 Update (At Run index 30):</strong> Triggered a drastic word count inflation and progressive decay of semantic precision due to template overload.</span>
-          </div>
+          {stats?.inflectionRun && (
+            <div className="flex items-center gap-1.5 p-3 bg-slate-950 border border-slate-900 rounded-lg text-slate-400 text-[10px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+              <span>
+                <strong>Drift inflection at Run #{stats.inflectionRun.runIndex} ({stats.inflectionRun.model}):</strong>{' '}
+                Cohesion dropped to {stats.inflectionRun.cohesionScore} and word count rose to {stats.inflectionRun.wordCount}.
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Before/After Semantic Diff Comparer (takes 5 columns) */}
-        <div className="lg:col-span-5 bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between space-y-4" id="drift-comparer-panel">
+        {/* Inspector Panel */}
+        <div className="lg:col-span-5 bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col space-y-4" id="drift-comparer-panel">
           <div>
             <h3 className="text-sm font-serif text-slate-200 flex items-center gap-1.5">
-              <Calendar size={14} className="text-violet-400" /> In-Context Comparison <span className="italic">Sandbox</span>
+              <Activity size={14} className="text-violet-400" /> Run Inspector
             </h3>
             <p className="text-[10px] text-slate-500">
-              Compare output differences between runs. Run 22 serves as the solid base reference.
+              Click any point on the chart, or use the quick-access buttons below.
             </p>
           </div>
 
-          {/* Quick preset selector */}
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <button
-              onClick={() => {
-                const pt = driftData.find(d => d.runIndex === 22) || driftData[12];
-                if (pt) setSelectedPoint(pt);
-              }}
-              className={`p-2.5 rounded-lg text-left border transition-all cursor-pointer ${
-                selectedPoint?.runIndex === 22 
-                  ? 'bg-violet-600/10 border-violet-500 text-violet-300' 
-                  : 'bg-slate-950 border-slate-800 hover:bg-slate-900 text-slate-400'
-              }`}
-            >
-              <div className="font-bold flex items-center gap-1">
-                <CheckCircle size={12} className="text-emerald-500" /> Reference Run #22
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1 font-mono">v3.1 Base Model</div>
-            </button>
-
-            <button
-              onClick={() => {
-                const pt = driftData.find(d => d.runIndex === 43) || driftData[33];
-                if (pt) setSelectedPoint(pt);
-              }}
-              className={`p-2.5 rounded-lg text-left border transition-all cursor-pointer ${
-                selectedPoint?.runIndex === 43 
-                  ? 'bg-violet-600/10 border-violet-500 text-violet-300' 
-                  : 'bg-slate-950 border-slate-800 hover:bg-slate-900 text-slate-400'
-              }`}
-            >
-              <div className="font-bold flex items-center gap-1 text-red-400">
-                <AlertTriangle size={12} /> Degraded Run #43
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1 font-mono">v3.2 Bloated Model</div>
-            </button>
+          {/* Quick access: first, last, worst */}
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            {[
+              { label: 'First Run', run: driftData[0] },
+              { label: 'Latest Run', run: driftData[driftData.length - 1] },
+              {
+                label: 'Worst Run',
+                run: driftData.reduce((w, d) => d.cohesionScore < w.cohesionScore ? d : w, driftData[0])
+              },
+            ].map(({ label, run }) => (
+              <button
+                key={label}
+                onClick={() => setSelectedPoint(run)}
+                className={`p-2 rounded-lg text-left border transition-all cursor-pointer ${
+                  activePoint?.runIndex === run.runIndex
+                    ? 'bg-violet-600/10 border-violet-500 text-violet-300'
+                    : 'bg-slate-950 border-slate-800 hover:bg-slate-900 text-slate-400'
+                }`}
+              >
+                <div className="font-bold text-[10px] truncate">{label}</div>
+                <div className="font-mono text-[10px] text-slate-500 mt-0.5">#{run.runIndex}</div>
+              </button>
+            ))}
           </div>
 
-          {/* Dynamic Inspector Frame */}
-          {selectedPoint && (
-            <div className="p-4 bg-slate-950 border border-slate-900 rounded-lg space-y-3 flex-1 flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-[10px] font-mono border-b border-slate-900 pb-1.5 text-slate-500">
-                  <span>Selected Run #{selectedPoint.runIndex} ({selectedPoint.runId})</span>
-                  <span>{selectedPoint.model.split(' ')[0]}</span>
-                </div>
+          {/* Dynamic inspector content */}
+          {activePoint && (
+            <div className="p-4 bg-slate-950 border border-slate-900 rounded-lg space-y-3 flex-1 flex flex-col">
+              <div className="flex items-center justify-between text-[10px] font-mono border-b border-slate-900 pb-1.5 text-slate-500">
+                <span>Run #{activePoint.runIndex} — {activePoint.runId}</span>
+                <span className={activePoint.hasFailure ? 'text-red-400 font-bold' : 'text-emerald-400'}>
+                  {activePoint.hasFailure ? '⚠ FAILED' : '✓ OK'}
+                </span>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4 text-center pb-2 border-b border-slate-900/60">
-                  <div className="bg-slate-900/80 p-1.5 rounded">
-                    <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Metrics Cohesion</div>
-                    <div className={`text-sm font-extrabold font-mono mt-0.5 ${selectedPoint.cohesionScore >= 0.70 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {selectedPoint.cohesionScore}
-                    </div>
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="bg-slate-900/80 p-2 rounded">
+                  <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Cohesion Index</div>
+                  <div className={`text-xl font-extrabold font-mono mt-0.5 ${activePoint.cohesionScore >= 0.70 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {activePoint.cohesionScore}
                   </div>
-                  <div className="bg-slate-900/80 p-1.5 rounded">
-                    <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Metric Output Size</div>
-                    <div className={`text-sm font-extrabold font-mono mt-0.5 ${selectedPoint.wordCount < 120 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {selectedPoint.wordCount} words
+                  {stats && (
+                    <div className="text-[9px] text-slate-600 mt-0.5">
+                      avg {stats.avgCohesion}
                     </div>
-                  </div>
+                  )}
                 </div>
-
-                {/* Compare text outputs */}
-                <div className="text-xs space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                  <div className="font-bold text-slate-300">Generated Confluence FAQ Text:</div>
-                  
-                  {selectedPoint.runIndex < 30 ? (
-                    <div className="text-slate-400 leading-relaxed font-sans space-y-2">
-                      <p className="font-bold text-white bg-slate-900 px-1 py-0.5 rounded text-[10px] inline-block">✅ Secure SSO Resolution Page:</p>
-                      <p><strong>Title: Resolving Corporate SSO token expiration</strong></p>
-                      <p>Ensure SAML bound elements route appropriately. Navigate to Okta verify portal to refresh verification keys. If blocks relate to lapsed corporate subscriptions, instruct users to notify accounts payable securely.</p>
-                    </div>
-                  ) : (
-                    <div className="text-slate-400 leading-relaxed font-sans space-y-2 text-[11px]">
-                      <p className="font-bold text-red-400 bg-red-950/20 border border-red-900/40 px-1 py-0.5 rounded text-[10px] inline-block">❌ Bloated/Hallucinated Output (Drifted):</p>
-                      <p><strong>Title: General troubleshooting SSO blocked error authentication invoice mismatch card failure configuration</strong></p>
-                      <p className="border-l-2 border-amber-500 pl-2 italic bg-amber-500/5 py-1 text-slate-300">
-                        "Notice: To pay billing invoice subscription lapse card renewal immediately, insert verification card credit token CVV directly inside SAML security headers parameter elements."
-                      </p>
-                      <p>Additionally, review 14 administrative guidelines including VPN configuration, Confluence page caches, workflow transitions, mandatory peer approvals, new provisioning cleared members...</p>
-                      <p className="text-[9px] text-red-400/80 font-bold">⚠️ Security Scan Error: PCI variable Leak - CVV credentials crossed over into help guide parameters.</p>
+                <div className="bg-slate-900/80 p-2 rounded">
+                  <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Word Count</div>
+                  <div className={`text-xl font-extrabold font-mono mt-0.5 ${activePoint.wordCount < 120 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {activePoint.wordCount}w
+                  </div>
+                  {stats && (
+                    <div className="text-[9px] text-slate-600 mt-0.5">
+                      avg {stats.avgWordCount}w
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="text-[9px] text-slate-500 text-center font-mono">
-                Historical Run Captured: {selectedPoint.timestamp}
+              <div className="space-y-1 text-[11px]">
+                <div className="flex justify-between text-slate-500">
+                  <span>Model</span>
+                  <span className="font-mono text-slate-300">{activePoint.model}</span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>Timestamp</span>
+                  <span className="font-mono text-slate-300">{activePoint.timestamp}</span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>vs. Average Cohesion</span>
+                  <span className={`font-mono font-bold ${
+                    stats && activePoint.cohesionScore >= parseFloat(stats.avgCohesion)
+                      ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {stats
+                      ? `${activePoint.cohesionScore >= parseFloat(stats.avgCohesion) ? '+' : ''}${(activePoint.cohesionScore - parseFloat(stats.avgCohesion)).toFixed(2)}`
+                      : '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>vs. Average Words</span>
+                  <span className={`font-mono font-bold ${
+                    stats && activePoint.wordCount <= stats.avgWordCount
+                      ? 'text-emerald-400' : 'text-amber-400'
+                  }`}>
+                    {stats
+                      ? `${activePoint.wordCount > stats.avgWordCount ? '+' : ''}${activePoint.wordCount - stats.avgWordCount}w`
+                      : '—'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Drift verdict badge */}
+              <div className={`mt-auto text-center text-[10px] font-bold py-1.5 rounded-lg ${
+                activePoint.cohesionScore >= 0.70 && activePoint.wordCount < 150
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  : activePoint.hasFailure
+                  ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+              }`}>
+                {activePoint.cohesionScore >= 0.70 && activePoint.wordCount < 150
+                  ? '✓ Run within healthy bounds'
+                  : activePoint.hasFailure
+                  ? '✗ Run marked as failed'
+                  : '⚠ Degraded output detected'}
               </div>
             </div>
           )}

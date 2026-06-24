@@ -21,9 +21,9 @@ export default function App() {
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   // Sandbox parameters for Use Case 3 Trigger
-  const [sandboxTicketId, setSandboxTicketId] = useState<string>('JSM-442');
-  const [sandboxPrompt, setSandboxPrompt] = useState<string>('Enforce strict verification procedures. Strictly prevent CVV billing overlaps in documentation headers.');
-  const [sandboxModel, setSandboxModel] = useState<string>('gemini-3.5-flash');
+  const [sandboxTicketId, setSandboxTicketId] = useState<string>('');
+  const [sandboxPrompt, setSandboxPrompt] = useState<string>('Process this ticket carefully. Extract the core issue and generate a clear, structured Confluence FAQ article without hallucinations.');
+  const [sandboxModel, setSandboxModel] = useState<string>('gemini-2.0-flash');
 
   // Trigger brief alert notification
   const notify = (type: 'success' | 'error' | 'info', text: string) => {
@@ -45,8 +45,28 @@ export default function App() {
       const ticketsData = await ticketsRes.json();
       const driftDataVal = await driftRes.json();
 
-      if (runsData.status === 'success') setRuns(runsData.runs);
-      if (ticketsData.status === 'success') setTickets(ticketsData.tickets);
+      if (runsData.status === 'success') {
+        // /api/runs renvoie seulement les résumés (sans steps) — on enrichit chaque run
+        const fullRuns = await Promise.all(
+          runsData.runs.map(async (r: any) => {
+            try {
+              const detailRes  = await fetch(`/api/run/${r.id}`);
+              const detailData = await detailRes.json();
+              return detailData.status === 'success' ? detailData.run : r;
+            } catch {
+              return r; // fallback sur le résumé si le détail échoue
+            }
+          })
+        );
+        setRuns(fullRuns);
+      }
+      if (ticketsData.status === 'success') {
+        setTickets(ticketsData.tickets);
+        // Set default sandbox ticket to first real ticket
+        if (ticketsData.tickets.length > 0 && !sandboxTicketId) {
+          setSandboxTicketId(ticketsData.tickets[0].id);
+        }
+      }
       if (driftDataVal.status === 'success') setDriftData(driftDataVal.data);
 
       // Default active run if none selected
@@ -190,117 +210,117 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 font-sans antialiased flex flex-col justify-between selection:bg-violet-500/30 selection:text-white pb-6">
-      {/* Upper Navigation Bar */}
-      <header className="sticky top-0 z-50 bg-[#020617]/85 backdrop-blur-md border-b border-violet-900/25 px-6 py-4 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-lg shadow-inner flex items-center justify-center">
-            <Terminal size={18} className="text-white animate-pulse" />
+    <div className="min-h-screen bg-[#03040d] aero-grid-bg aero-scanlines text-slate-100 relative overflow-hidden flex flex-col">
+
+      {/* Ambient glow orbs */}
+      <div className="fixed top-[-120px] left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-violet-600/10 blur-[140px] pointer-events-none" />
+      <div className="fixed bottom-[-80px] right-[-100px] w-[400px] h-[300px] bg-fuchsia-700/8 blur-[120px] pointer-events-none" />
+      <div className="fixed top-1/3 left-[-80px] w-[300px] h-[300px] bg-blue-700/6 blur-[100px] pointer-events-none" />
+
+      {/* ═══ PREMIUM HEADER ═══ */}
+      <header className="sticky top-0 z-50 glass-card border-b border-violet-900/20 px-6 py-3 flex items-center justify-between" style={{backdropFilter:'blur(24px)'}}>
+
+        {/* Logo + Brand */}
+        <div className="flex items-center gap-3">
+          <div className="aero-float shrink-0">
+            <img
+              src="/aero-logo.svg"
+              alt="AERO Logo"
+              className="h-12 w-12 object-contain drop-shadow-[0_0_16px_rgba(139,92,246,0.8)]"
+              onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }}
+            />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-violet-400 tracking-wider block font-mono">AINS 4.0 WORKSPACE</span>
-            <h1 className="text-sm font-serif text-slate-100 tracking-tight">FLIGHT RECORDER <span className="text-xs font-normal text-slate-500 font-sans">v1.2</span></h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black tracking-[0.15em] aero-shimmer">AERO</h1>
+              <span className="aero-badge">v1.2</span>
+            </div>
+            <p className="text-[10px] text-slate-500 tracking-[0.18em] uppercase font-medium whitespace-nowrap">Observe · Understand · Elevate</p>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <nav className="hidden md:flex items-center gap-1.5 p-1 bg-slate-950/80 rounded-xl border border-slate-900 text-xs font-bold" id="main-navigation">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            id="tab-dashboard"
-            className={`px-4 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'dashboard' ? 'bg-violet-900/20 text-violet-300 border-violet-800/30 font-bold shadow-inner' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
-          >
-            📊 Command Center
-          </button>
-          <button
-            onClick={() => setActiveTab('failures')}
-            id="tab-failures"
-            className={`px-4 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'failures' ? 'bg-violet-900/20 text-violet-300 border-violet-800/30 font-bold shadow-inner' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
-          >
-            🔍 Silent Failures
-          </button>
-          <button
-            onClick={() => setActiveTab('drift')}
-            id="tab-drift"
-            className={`px-4 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'drift' ? 'bg-violet-900/20 text-violet-300 border-violet-800/30 font-bold shadow-inner' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
-          >
-            📈 Drift Monitor
-          </button>
-          <button
-            onClick={() => setActiveTab('recorder')}
-            id="tab-recorder"
-            className={`px-4 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'recorder' ? 'bg-violet-900/20 text-violet-300 border-violet-800/30 font-bold shadow-inner' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
-          >
-            🔂 Flight Recorder
-          </button>
-          <button
-            onClick={() => setActiveTab('judge')}
-            id="tab-judge"
-            className={`px-4 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'judge' ? 'bg-violet-900/20 text-violet-300 border-violet-800/30 font-bold shadow-inner' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
-          >
-            🧠 AI Judge Report
-          </button>
-          <button
-            onClick={() => setActiveTab('sandbox')}
-            id="tab-sandbox"
-            className={`px-4 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'sandbox' ? 'bg-violet-900/20 text-violet-300 border-violet-800/30 font-bold shadow-inner' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
-          >
-            🤖 Sandbox Trigger
-          </button>
+        <nav className="hidden lg:flex items-center gap-1 p-1 rounded-xl border border-slate-800/80 text-[11px] font-semibold" style={{background:'rgba(3,4,13,0.6)'}} id="main-navigation">
+          {([
+            { id: 'dashboard', label: 'Command Center',  icon: <Activity size={13} /> },
+            { id: 'failures',  label: 'Silent Failures',  icon: <ShieldAlert size={13} /> },
+            { id: 'drift',     label: 'Drift Monitor',    icon: <Cpu size={13} /> },
+            { id: 'recorder',  label: 'Flight Recorder',  icon: <Layers size={13} /> },
+            { id: 'judge',     label: 'AI Judge',         icon: <GitFork size={13} /> },
+            { id: 'sandbox',   label: 'Sandbox',          icon: <Terminal size={13} /> },
+          ] as {id:string;label:string;icon:React.ReactNode}[]).map(tab => (
+            <button
+              key={tab.id}
+              id={`tab-${tab.id}`}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3.5 py-1.5 rounded-lg border transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'nav-tab-active text-violet-200 border-violet-600/40'
+                  : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
+              }`}
+            >
+              <span className={activeTab === tab.id ? 'text-violet-400' : 'text-slate-600'}>{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
         </nav>
 
-        {/* Sync Controls */}
-        <div className="flex items-center gap-3">
+        {/* Right controls */}
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => fetchAllData(true)}
             id="btn-sync-refresh"
             disabled={isProcessing}
-            className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 rounded-lg transition-all disabled:opacity-40 cursor-pointer"
-            title="Reload Environment"
+            className="p-2 rounded-lg border border-slate-800 text-slate-500 hover:text-violet-400 hover:border-violet-800/50 transition-all disabled:opacity-40 cursor-pointer"
+            style={{background:'rgba(15,23,42,0.6)'}}
+            title="Sync data"
           >
-            <RefreshCw size={14} className={isProcessing ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={isProcessing ? 'animate-spin text-violet-400' : ''} />
           </button>
-
-          <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20 rounded-lg text-xs font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
-            Active Audit Tunnel
+          <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold" style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',color:'#10b981'}}>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Live Audit
           </div>
         </div>
       </header>
 
-      {/* Floating Notifications Alert box */}
+      {/* Mobile nav */}
+      <div className="lg:hidden flex gap-1 px-4 pt-3 overflow-x-auto" style={{background:'rgba(3,4,13,0.8)'}}>
+        {([
+          { id: 'dashboard', label: '📊 Command' },
+          { id: 'failures',  label: '🔍 Failures' },
+          { id: 'drift',     label: '📈 Drift' },
+          { id: 'recorder',  label: '🔂 Recorder' },
+          { id: 'judge',     label: '🧠 Judge' },
+          { id: 'sandbox',   label: '🤖 Sandbox' },
+        ] as {id:string;label:string}[]).map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${
+              activeTab === t.id ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-white'
+            }`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Toast notification */}
       {notification && (
-        <div className="fixed top-20 right-6 z-50 max-w-sm" id="toast-alert">
-          <div className={`p-4 rounded-xl border shadow-xl flex items-start gap-3 animate-bounce ${
-            notification.type === 'success' 
-              ? 'bg-emerald-950/70 border-emerald-500/30 text-emerald-300' 
-              : notification.type === 'error' 
-                ? 'bg-red-950/70 border-red-500/30 text-red-300' 
-                : 'bg-indigo-950/70 border-indigo-500/30 text-indigo-300'
-          }`}>
-            <AlertCircle size={18} className="shrink-0 mt-0.5" />
-            <div className="text-xs font-medium">{notification.text}</div>
+        <div className="fixed top-20 right-6 z-50 max-w-xs aero-slide-in" id="toast-alert">
+          <div className={`p-3.5 rounded-xl border shadow-2xl flex items-start gap-3 ${
+            notification.type === 'success'
+              ? 'bg-emerald-950/80 border-emerald-500/25 text-emerald-300'
+              : notification.type === 'error'
+              ? 'bg-red-950/80 border-red-500/25 text-red-300'
+              : 'bg-violet-950/80 border-violet-500/25 text-violet-300'
+          }`} style={{backdropFilter:'blur(20px)'}}>
+            <AlertCircle size={15} className="shrink-0 mt-0.5" />
+            <div className="text-[11px] font-medium leading-relaxed">{notification.text}</div>
           </div>
         </div>
       )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
-        
-        {/* Mobile quick navigations tabs */}
-        <div className="md:hidden flex bg-slate-950 p-1 rounded-xl border border-slate-900 justify-between overflow-x-auto gap-1">
-          {['dashboard', 'failures', 'drift', 'recorder', 'judge', 'sandbox'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 rounded-md text-[10px] font-bold capitalize whitespace-nowrap transition-all ${
-                activeTab === tab ? 'bg-violet-600 text-white' : 'text-slate-400'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+      {/* ═══ MAIN CONTENT ═══ */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-6 py-6 space-y-6">
 
         {/* Tab Selection Switch */}
         {activeTab === 'dashboard' && (
@@ -315,22 +335,16 @@ export default function App() {
           />
         )}
 
+
         {activeTab === 'failures' && (
           <SilentFailureMap
             tickets={tickets}
             onTriggerLiveMock={(tid) => {
-              const ticket = tickets.find(t => t.id === tid);
-              if (ticket) {
-                // Prepopulate Sandbox variables and run
-                setSandboxTicketId(tid);
-                setSandboxPrompt(
-                  tid === 'JSM-442' 
-                    ? 'Write credit instructions safely into Stripe redirect blocks. NEVER dump credit token strings inside Confluence HTML draft files.' 
-                    : 'Process standard template guidelines. Ensure strict compartmentalisation of workspace identity variables.'
-                );
-                setActiveTab('sandbox');
-                notify('info', `Ingested ${tid} details. Ready to parameterize sandbox run.`);
-              }
+              // Pre-load the selected ticket into Sandbox and navigate there
+              setSandboxTicketId(tid);
+              setSandboxPrompt(`Analyze ticket ${tid} carefully. Extract the root cause and generate a professional Confluence FAQ article. Be precise and avoid hallucinations.`);
+              setActiveTab('sandbox');
+              notify('info', `Ticket ${tid} loaded in Sandbox. Click Launch to run the agent.`);
             }}
             isProcessing={isProcessing}
           />
@@ -391,19 +405,13 @@ export default function App() {
                     </label>
                     <select
                       value={sandboxTicketId}
-                      onChange={(e) => {
-                        setSandboxTicketId(e.target.value);
-                        setSandboxPrompt(e.target.value === 'JSM-442' 
-                          ? 'Write billing instructions safely into Stripe. NEVER insert raw CSV metadata headers in SAML.' 
-                          : 'Translate ticket details into standard help guides without billing references.'
-                        );
-                      }}
+                      onChange={(e) => setSandboxTicketId(e.target.value)}
                       id="sandbox-ticket-selector"
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 px-3 text-slate-200"
                     >
                       {tickets.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.id} - {t.title} ({t.category})
+                          {t.id} — {t.title}
                         </option>
                       ))}
                     </select>
@@ -493,10 +501,22 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer credits lines */}
-      <footer className="max-w-7xl w-full mx-auto px-6 border-t border-slate-900 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500 font-mono">
-        <div>AINS Hackathon 2026 — Unified Architecture Showcase</div>
-        <div>Engineered in partnership with Vectors & Atlassian Platform Partners</div>
+      {/* ═══ FOOTER ═══ */}
+      <footer className="mt-auto border-t border-slate-900/60 px-8 py-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <img src="/aero-logo.svg" alt="" className="h-6 w-6 object-contain opacity-60"
+              onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+            <span className="text-[11px] font-bold tracking-widest text-slate-600 uppercase">AERO</span>
+            <span className="text-slate-800">|</span>
+            <span className="text-[10px] text-slate-700 font-mono">Automated Enterprise Recording &amp; Observability</span>
+          </div>
+          <div className="flex items-center gap-4 text-[10px] text-slate-700 font-mono tracking-wider">
+            <span>AINS Hackathon 2026</span>
+            <span className="w-1 h-1 rounded-full bg-violet-800" />
+            <span>Capture · Replay · Audit · Explain</span>
+          </div>
+        </div>
       </footer>
     </div>
   );

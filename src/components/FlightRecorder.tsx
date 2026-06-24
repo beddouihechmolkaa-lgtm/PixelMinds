@@ -61,10 +61,14 @@ export default function FlightRecorder({
     };
   }, [isPlaying, playbackSpeed, run?.steps]);
 
-  if (!run) {
+  if (!run || !run.steps || run.steps.length === 0) {
     return (
-      <div className="p-8 text-center text-slate-500 animate-pulse bg-slate-900/10 border border-slate-800 rounded-xl">
-        Loading Flight Trajectory Recorder...
+      <div className="p-8 text-center space-y-4 bg-slate-900/10 border border-slate-800 rounded-xl">
+        <div className="text-slate-500 text-sm">
+          {runs.length === 0
+            ? '🚀 Aucune trajectoire enregistrée. Va dans "Sandbox Trigger" pour lancer un agent.'
+            : '⏳ Chargement de la trajectoire...'}
+        </div>
       </div>
     );
   }

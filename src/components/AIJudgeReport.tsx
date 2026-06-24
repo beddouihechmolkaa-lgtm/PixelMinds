@@ -80,48 +80,43 @@ export default function AIJudgeReport({
 
   return (
     <div className="space-y-6" id="ai-judge-sec">
-      {/* Selection row */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-[#0f172a] border border-slate-800 rounded-xl shadow-md">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-xl"
+        style={{background:'rgba(15,23,42,0.85)', border:'1px solid rgba(30,41,59,0.9)'}}>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-violet-500/15 text-violet-300 border border-violet-500/30">
-              USE CASE 1 CAPABILITY
-            </span>
-            <h2 className="text-xl font-serif text-white flex items-center gap-2">
-              <Cpu className="text-violet-400" size={20} /> AI Quality <span className="italic">Judge Dashboard</span>
+            <span className="aero-badge">USE CASE 1</span>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Cpu className="text-violet-400" size={18} />
+              AI Quality <span className="text-violet-300 italic font-normal">Judge Dashboard</span>
             </h2>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-[11px] text-slate-500 leading-relaxed">
             Evaluating non-deterministic steps. AI Judge performs drift diagnostics, checks PCI limits, and exposes faulty components.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
-          <select
-            value={selectedRunId}
-            onChange={(e) => onSelectRun(e.target.value)}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <select value={selectedRunId} onChange={(e) => onSelectRun(e.target.value)}
             id="audit-session-selector"
-            className="bg-slate-950 border border-slate-800 text-xs rounded-lg py-1.5 px-3 text-slate-200 focus:outline-none focus:border-violet-500 cursor-pointer"
-          >
+            className="text-[11px] rounded-lg py-1.5 px-3 text-slate-200 focus:outline-none cursor-pointer"
+            style={{background:'rgba(3,4,13,0.8)', border:'1px solid rgba(30,41,59,0.9)'}}>
             {runs.map((r) => (
-              <option key={r.id} value={r.id}>
-                Audit Run: {r.id} - ({r.ticketId})
-              </option>
+              <option key={r.id} value={r.id}>Audit: {r.id} ({r.ticketId})</option>
             ))}
           </select>
 
           {run && (
-            <button
-              onClick={handleAuditClick}
-              disabled={isProcessing}
-              id="btn-run-audit"
-              className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white rounded text-xs font-bold transition-all shadow-md flex items-center gap-1 cursor-pointer"
-            >
-              <RefreshCw size={12} className={isProcessing ? 'animate-spin' : ''} /> Run AI Evaluation
+            <button onClick={handleAuditClick} disabled={isProcessing} id="btn-run-audit"
+              className="px-3 py-1.5 text-white rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              style={{background:'linear-gradient(135deg,#7c3aed,#6d28d9)', boxShadow:'0 4px 16px rgba(109,40,217,0.25)'}}>
+              <RefreshCw size={11} className={isProcessing ? 'animate-spin' : ''} />
+              Run AI Evaluation
             </button>
           )}
         </div>
       </div>
+
 
       {run ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="audit-main-grid">

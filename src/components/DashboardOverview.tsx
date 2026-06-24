@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, ShieldAlert, CheckCircle2, TrendingUp, RefreshCw, Library, Play, Search, AlertTriangle, Cpu } from 'lucide-react';
+import { Activity, ShieldAlert, CheckCircle2, TrendingUp, RefreshCw, Library, Play, AlertTriangle, Cpu, Zap, GitBranch } from 'lucide-react';
 import { AgentRun } from '../types';
 
 interface DashboardProps {
@@ -10,217 +10,250 @@ interface DashboardProps {
 }
 
 export default function DashboardOverview({ runs, onSelectRun, onNavigate, onResetRuns }: DashboardProps) {
-  const totalRuns = runs.length;
-  const failedRuns = runs.filter(r => r.status === 'FAILED' || r.verdict?.status === 'FAILED').length;
+  const totalRuns   = runs.length;
+  const failedRuns  = runs.filter(r => r.status === 'FAILED' || r.verdict?.status === 'FAILED').length;
+  const replayRuns  = runs.filter(r => r.isReplay).length;
   const successRate = totalRuns > 0 ? (((totalRuns - failedRuns) / totalRuns) * 100).toFixed(1) : '100.0';
-  
-  // Average cohesion
+
   const runsWithCohesion = runs.filter(r => r.verdict && r.verdict.cohesionScore > 0);
   const avgCohesion = runsWithCohesion.length > 0
     ? (runsWithCohesion.reduce((acc, r) => acc + (r.verdict?.cohesionScore || 0), 0) / runsWithCohesion.length).toFixed(2)
     : '0.84';
 
   return (
-    <div className="space-y-8" id="overview-dashboard">
-      {/* Upper Brand / Welcome panel */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-violet-950/45 via-slate-900 to-slate-950 border border-violet-900/30 rounded-2xl p-6 md:p-8">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl -z-10" />
-        <div className="absolute -bottom-10 -left-10 w-80 h-80 bg-fuchsia-600/5 rounded-full blur-3xl -z-10" />
-        
-        <div className="max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-400/20 text-xs font-semibold text-violet-300">
-            <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-            AINS Hackathon 2026 — Unified Diagnostic Suite
-          </div>
-          <h1 className="text-3xl md:text-4xl font-serif text-violet-100 tracking-tight leading-tight">
-            AINS Agent <span className="italic text-white">Flight Recorder</span>
-          </h1>
-          <p className="text-slate-300 text-sm md:text-base leading-relaxed">
-            Enterprise AI agents running in Atlassian workspaces (Jira, Confluence) are non-deterministic. Traditional logging tools cannot troubleshoot silent failures. Our system transparently **records every step (UC2)**, enables **step-by-step deterministic replay with divergence injection**, and executes **AI Judge evaluations (UC1)** to attribute silent failures to precise components.
-          </p>
-          <div className="pt-2 flex flex-wrap gap-3">
-            <button
-              onClick={() => onNavigate('recorder')}
-              id="btn-nav-recorder"
-              className="px-4 py-2 bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white font-medium text-xs rounded-lg transition-all shadow-md shadow-violet-900/40 flex items-center gap-1.5 cursor-pointer"
-            >
-              <Cpu size={14} /> Launch Flight Recorder
-            </button>
-            <button
-              onClick={() => onNavigate('failures')}
-              id="btn-nav-failures"
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-705 text-slate-300 font-medium text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <ShieldAlert size={14} /> silent Failures Map
-            </button>
-            <button
-              onClick={onResetRuns}
-              id="btn-reset-sessions"
-              className="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <RefreshCw size={12} /> Reset Trajectories
-            </button>
+    <div className="space-y-6" id="overview-dashboard">
+
+      {/* ── Hero Banner ── */}
+      <div className="relative overflow-hidden rounded-2xl border border-violet-500/20 p-8 md:p-10"
+        style={{background: 'linear-gradient(135deg, rgba(109,40,217,0.18) 0%, rgba(15,23,42,0.95) 50%, rgba(10,16,40,0.98) 100%)'}}>
+
+        {/* Glow blobs */}
+        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-600/15 rounded-full blur-[100px] -z-0 pointer-events-none" />
+        <div className="absolute -bottom-10 left-0 w-60 h-60 bg-fuchsia-600/8 rounded-full blur-[80px] -z-0 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-8">
+
+          {/* Logo */}
+          <img
+            src="/aero-logo.svg"
+            alt="AERO"
+            className="h-24 w-24 md:h-28 md:w-28 object-contain shrink-0 drop-shadow-[0_0_32px_rgba(139,92,246,0.7)] aero-float"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+
+          <div className="space-y-4 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase"
+                style={{background:'rgba(16,185,129,0.1)', border:'1px solid rgba(16,185,129,0.25)', color:'#10b981'}}>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Active Observability Engine
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase"
+                style={{background:'rgba(139,92,246,0.1)', border:'1px solid rgba(139,92,246,0.25)', color:'#c4b5fd'}}>
+                AINS Hackathon 2026
+              </span>
+            </div>
+
+            <div>
+              <h2 className="text-3xl md:text-4xl font-black tracking-tight text-white leading-none">
+                AERO <span className="aero-shimmer">Flight Recorder</span>
+              </h2>
+              <p className="text-slate-400 text-sm mt-2 leading-relaxed max-w-2xl">
+                Enterprise AI agents running in Atlassian workspaces are non-deterministic. AERO
+                transparently <strong className="text-violet-300">records every step</strong>, enables{' '}
+                <strong className="text-violet-300">deterministic replay with divergence injection</strong>, and executes{' '}
+                <strong className="text-violet-300">AI Judge evaluations</strong> to attribute silent failures to precise components.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button onClick={() => onNavigate('recorder')} id="btn-nav-recorder"
+                className="px-4 py-2 text-white font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer aero-glow"
+                style={{background:'linear-gradient(135deg,#7c3aed,#6d28d9)', boxShadow:'0 4px 20px rgba(109,40,217,0.35)'}}>
+                <Cpu size={13} /> Launch Flight Recorder
+              </button>
+              <button onClick={() => onNavigate('sandbox')} id="btn-nav-sandbox"
+                className="px-4 py-2 font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer hover:text-white"
+                style={{background:'rgba(15,23,42,0.8)', border:'1px solid rgba(139,92,246,0.3)', color:'#a78bfa'}}>
+                <Zap size={13} /> Run Agent on Jira Ticket
+              </button>
+              <button onClick={() => onNavigate('failures')} id="btn-nav-failures"
+                className="px-4 py-2 font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                style={{background:'rgba(15,23,42,0.8)', border:'1px solid rgba(100,116,139,0.3)', color:'#94a3b8'}}>
+                <ShieldAlert size={13} /> Silent Failures Map
+              </button>
+              <button onClick={onResetRuns} id="btn-reset-sessions"
+                className="px-3 py-2 font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                style={{background:'rgba(15,23,42,0.5)', border:'1px solid rgba(100,116,139,0.2)', color:'#64748b'}}>
+                <RefreshCw size={11} /> Reset
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1 */}
-        <div className="p-4 bg-[#0f172a] border border-slate-800 rounded-xl space-y-2 hover:border-violet-500/30 transition-all shadow-lg" id="stat-card-success">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">JUDGING SUCCESS RATE</span>
-            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
-              <CheckCircle2 size={16} />
+      {/* ── Metrics Grid ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            id: 'stat-success', label: 'Success Rate', value: `${successRate}%`,
+            sub: `${totalRuns - failedRuns}/${totalRuns} clean runs`,
+            barWidth: successRate, barColor: '#10b981',
+            icon: <CheckCircle2 size={16} />, iconBg: 'rgba(16,185,129,0.1)', iconColor: '#10b981',
+            glowColor: 'rgba(16,185,129,0.15)',
+          },
+          {
+            id: 'stat-failures', label: 'Silent Failures', value: String(failedRuns),
+            sub: 'Requires AI verdict', barWidth: null, barColor: '',
+            icon: <ShieldAlert size={16} />, iconBg: 'rgba(248,113,113,0.1)', iconColor: '#f87171',
+            glowColor: 'rgba(248,113,113,0.1)',
+          },
+          {
+            id: 'stat-cohesion', label: 'Avg Cohesion', value: avgCohesion,
+            sub: 'Semantic quality index',
+            barWidth: String(parseFloat(avgCohesion) * 100), barColor: '#a78bfa',
+            icon: <TrendingUp size={16} />, iconBg: 'rgba(167,139,250,0.1)', iconColor: '#a78bfa',
+            glowColor: 'rgba(139,92,246,0.12)',
+          },
+          {
+            id: 'stat-replays', label: 'Recorded Replays', value: String(replayRuns),
+            sub: 'Deterministic playbacks',
+            barWidth: null, barColor: '',
+            icon: <GitBranch size={16} />, iconBg: 'rgba(56,189,248,0.1)', iconColor: '#38bdf8',
+            glowColor: 'rgba(56,189,248,0.08)',
+          },
+        ].map(s => (
+          <div key={s.id} id={s.id}
+            className="p-4 rounded-xl space-y-3 transition-all hover:scale-[1.01] cursor-default"
+            style={{background:`rgba(15,23,42,0.85)`, border:'1px solid rgba(30,41,59,0.9)', boxShadow:`0 0 30px ${s.glowColor}`}}>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">{s.label}</span>
+              <div className="p-1.5 rounded-lg" style={{background:s.iconBg, color:s.iconColor}}>{s.icon}</div>
             </div>
+            <div className="text-2xl font-black text-white tracking-tight">{s.value}</div>
+            {s.barWidth !== null && (
+              <div className="w-full bg-slate-800/80 h-1 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{width:`${Math.min(parseFloat(String(s.barWidth)), 100)}%`, background:s.barColor}} />
+              </div>
+            )}
+            <p className="text-[10px] text-slate-600">{s.sub}</p>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-serif text-white">{successRate}%</span>
-            <span className="text-[10px] text-rose-500 font-medium">-3.1% vs baseline</span>
-          </div>
-          <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-[#10b981] h-full rounded-full transition-all duration-500" style={{ width: `${successRate}%` }} />
-          </div>
-        </div>
-
-        {/* Metric 2 */}
-        <div className="p-4 bg-[#0f172a] border border-slate-800 rounded-xl space-y-2 hover:border-red-500/30 transition-all shadow-lg" id="stat-card-failures">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">SILENT FAILURES</span>
-            <div className="p-1.5 rounded-lg bg-rose-400/10 text-rose-400">
-              <ShieldAlert size={16} />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-serif text-rose-400">12</span>
-            <span className="text-[10px] text-rose-500 font-medium">Requires Attention</span>
-          </div>
-          <p className="text-[10px] text-slate-400 leading-tight">Flagged with semantic drift explanation</p>
-        </div>
-
-        {/* Metric 3 */}
-        <div className="p-4 bg-[#0f172a] border border-slate-800 rounded-xl space-y-2 hover:border-violet-500/30 transition-all shadow-lg" id="stat-card-cohesion">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">SEMANTIC COHESION</span>
-            <div className="p-1.5 rounded-lg bg-fuchsia-400/10 text-fuchsia-400">
-              <TrendingUp size={16} />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-serif text-white">{avgCohesion}</span>
-            <span className="text-[10px] text-emerald-500 font-medium font-sans">Stable</span>
-          </div>
-          <p className="text-[10px] text-slate-400 leading-tight">Average relevance & correctness rating</p>
-        </div>
-
-        {/* Metric 4 */}
-        <div className="p-4 bg-[#0f172a] border border-slate-800 rounded-xl space-y-2 hover:border-violet-500/30 transition-all shadow-lg" id="stat-card-active">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">LATENCY / STEP</span>
-            <div className="p-1.5 rounded-lg bg-sky-400/10 text-sky-400">
-              <Activity size={16} />
-            </div>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-serif text-white">1.2s</span>
-            <span className="text-[10px] text-slate-500 font-medium font-sans">P95 Optimized</span>
-          </div>
-          <p className="text-[10px] text-slate-400 leading-tight">JSM Tickets ➡️ Confluence FAQ pages</p>
-        </div>
+        ))}
       </div>
 
-      {/* Trajectory executions list */}
-      <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      {/* ── Trajectory Table ── */}
+      <div className="rounded-xl overflow-hidden" style={{background:'rgba(15,23,42,0.85)', border:'1px solid rgba(30,41,59,0.9)'}}>
+        <div className="px-6 py-4 border-b border-slate-800/60 flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-serif text-white flex items-center gap-2">
-              <Library size={18} className="text-violet-400" /> Recorded Trajectory <span className="italic">Flight Log</span>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Library size={16} className="text-violet-400" />
+              Recorded Trajectory <span className="italic text-violet-300 font-normal ml-1">Flight Log</span>
             </h3>
-            <p className="text-xs text-slate-400">All captured agent execution sequences, ready for deterministic step-by-step playback or AI diagnostic judging.</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">All captured execution sequences — replay, branch, or audit any run.</p>
           </div>
+          <span className="aero-badge">{totalRuns} sessions</span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold text-[10px]">
-                <th className="py-3 px-4">Session ID</th>
-                <th className="py-3 px-4">Target JSM Ticket</th>
-                <th className="py-3 px-4">Captured Timestamp</th>
-                <th className="py-3 px-4">Run Status</th>
-                <th className="py-3 px-4">Engine Model</th>
-                <th className="py-3 px-4 text-center">AI Judge Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+              <tr className="border-b border-slate-800/40 text-slate-600 uppercase tracking-wider text-[9px] font-bold">
+                {['Session ID', 'JSM Ticket', 'Timestamp', 'Status', 'Model', 'AI Judge', 'Actions'].map(h => (
+                  <th key={h} className="py-3 px-4 whitespace-nowrap">{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
-              {runs.map((run) => (
-                <tr key={run.id} className="hover:bg-slate-800/30 transition-all">
-                  <td className="py-3 px-4 font-mono font-bold text-slate-100 flex items-center gap-1.5">
-                    {run.id}
-                    {run.isReplay && (
-                      <span className="px-1.5 py-0.5 rounded text-[8px] font-semibold bg-violet-500/15 border border-violet-500/30 text-violet-300 uppercase tracking-widest">
-                        REPLAY
-                      </span>
-                    )}
-                  </td>
+            <tbody>
+              {runs.map((run, i) => (
+                <tr key={run.id}
+                  className="border-b border-slate-800/30 transition-all hover:bg-violet-900/8 group"
+                  style={{animationDelay:`${i * 30}ms`}}>
+
                   <td className="py-3 px-4">
-                    <div className="font-semibold text-slate-200">{run.ticketTitle}</div>
-                    <div className="text-[10px] text-slate-500 font-mono">{run.ticketId}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-bold text-slate-200 text-[10px]">{run.id}</span>
+                      {run.isReplay && (
+                        <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest"
+                          style={{background:'rgba(139,92,246,0.15)', border:'1px solid rgba(139,92,246,0.3)', color:'#c4b5fd'}}>
+                          REPLAY
+                        </span>
+                      )}
+                      {run.divergedAtStep && (
+                        <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest"
+                          style={{background:'rgba(217,70,239,0.12)', border:'1px solid rgba(217,70,239,0.3)', color:'#f0abfc'}}>
+                          BRANCH
+                        </span>
+                      )}
+                    </div>
                   </td>
-                  <td className="py-3 px-4 text-slate-400 font-mono">
-                    {new Date(run.timestamp).toLocaleTimeString()} {new Date(run.timestamp).toLocaleDateString()}
+
+                  <td className="py-3 px-4">
+                    <div className="font-semibold text-slate-200 text-[11px] truncate max-w-[180px]">{run.ticketTitle}</div>
+                    <div className="text-[9px] text-slate-600 font-mono">{run.ticketId}</div>
                   </td>
+
+                  <td className="py-3 px-4 text-slate-500 font-mono text-[9px] whitespace-nowrap">
+                    {new Date(run.timestamp).toLocaleTimeString()}<br/>
+                    <span className="text-slate-700">{new Date(run.timestamp).toLocaleDateString()}</span>
+                  </td>
+
                   <td className="py-3 px-4">
                     {run.status === 'FAILED' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-red-500/10 text-red-400 font-semibold border border-red-500/10">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                        FAILED
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold"
+                        style={{background:'rgba(248,113,113,0.08)', border:'1px solid rgba(248,113,113,0.2)', color:'#f87171'}}>
+                        <span className="w-1 h-1 rounded-full bg-red-400" />FAILED
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-emerald-500/10 text-emerald-400 font-semibold border border-emerald-500/10">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        SUCCESS
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold"
+                        style={{background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)', color:'#10b981'}}>
+                        <span className="w-1 h-1 rounded-full bg-emerald-400" />SUCCESS
                       </span>
                     )}
                   </td>
-                  <td className="py-3 px-4 font-mono text-slate-400 text-[10px] max-w-[120px] truncate">
-                    {run.modelName}
-                  </td>
-                  <td className="py-3 px-4 text-center">
+
+                  <td className="py-3 px-4 font-mono text-slate-600 text-[9px] max-w-[100px] truncate">{run.modelName}</td>
+
+                  <td className="py-3 px-4">
                     {run.verdict ? (
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        run.verdict.status === 'PASSED' 
-                        ? 'bg-emerald-950 border border-emerald-500/20 text-emerald-400' 
-                        : 'bg-red-950 border border-red-500/20 text-red-400'
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                        run.verdict.status === 'PASSED'
+                          ? 'bg-emerald-950 border border-emerald-500/20 text-emerald-400'
+                          : run.verdict.status === 'FLAGGED'
+                          ? 'bg-amber-950 border border-amber-500/20 text-amber-400'
+                          : 'bg-red-950 border border-red-500/20 text-red-400'
                       }`}>
-                        JUDGED: {run.verdict.status}
+                        {run.verdict.status}
                       </span>
                     ) : (
-                      <span className="text-slate-500 font-medium">Unevaluated</span>
+                      <span className="text-slate-700 text-[9px] font-mono">—</span>
                     )}
                   </td>
-                  <td className="py-3 px-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => onSelectRun(run.id)}
-                        className="p-1 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[10px] rounded hover:text-white font-semibold flex items-center gap-1 cursor-pointer"
-                      >
-                        <Play size={10} /> Replay
+
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => onSelectRun(run.id)}
+                        className="px-2 py-1 rounded text-[9px] font-bold flex items-center gap-1 cursor-pointer transition-all hover:scale-105"
+                        style={{background:'rgba(30,41,59,0.8)', border:'1px solid rgba(51,65,85,0.8)', color:'#94a3b8'}}>
+                        <Play size={9} /> Replay
                       </button>
-                      <button
-                        onClick={() => {
-                          onSelectRun(run.id);
-                          onNavigate('judge');
-                        }}
-                        className="py-1 px-2 bg-violet-600/10 border border-violet-500/25 text-violet-400 text-[10px] rounded hover:bg-violet-600/25 hover:text-white font-semibold cursor-pointer"
-                      >
-                        Troubleshoot
+                      <button onClick={() => { onSelectRun(run.id); onNavigate('judge'); }}
+                        className="px-2 py-1 rounded text-[9px] font-bold cursor-pointer transition-all hover:scale-105"
+                        style={{background:'rgba(109,40,217,0.12)', border:'1px solid rgba(109,40,217,0.3)', color:'#a78bfa'}}>
+                        Audit
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
+
+              {runs.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-slate-600 text-xs font-mono">
+                    No trajectories recorded yet — launch the agent from Sandbox to begin.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
